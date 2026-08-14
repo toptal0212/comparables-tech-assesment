@@ -3,7 +3,7 @@
 -- SQLite is the durable source of truth. The reasoning, in full, is in
 -- docs/DESIGN.md; the short version is that a single-node embedded database
 -- removes a network round-trip from a 200ms budget where the query embedding
--- already costs 18ms, and a managed Postgres on a free tier would spend more
+-- already costs 25ms, and a managed Postgres on a free tier would spend more
 -- than that on cold starts alone. Everything derived from this table (the
 -- vector matrix, the columnar filter arrays) is a rebuildable artifact.
 --

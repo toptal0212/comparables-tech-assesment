@@ -44,9 +44,10 @@ class Settings(BaseSettings):
     dataset_path: Path = REPO_ROOT / "sample_dataset" / "companies.json"
 
     # -- Embeddings -------------------------------------------------------
-    # bge-small-en-v1.5: 384 dimensions, ~130MB on disk, ~18ms per query
-    # embedding on a shared vCPU. Small enough to bake into the image, strong
-    # enough for short business descriptions.
+    # bge-small-en-v1.5: 384 dimensions, ~130MB on disk. Measured ~25ms per
+    # query embedding at embed_threads=1, which is the single largest term in
+    # the request budget. Small enough to bake into the image, strong enough
+    # for short business descriptions.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
     embed_batch_size: int = 256
@@ -57,10 +58,16 @@ class Settings(BaseSettings):
     # than failing to boot. See docs/DESIGN.md, "Graceful degradation".
     embeddings_enabled: bool = True
 
-    # Query embeddings are pure functions of the query string and cost ~18ms —
+    # Query embeddings are pure functions of the query string and cost ~25ms —
     # by far the largest term in the latency budget. Caching them turns a repeat
-    # query into a sub-millisecond lookup.
+    # query into a ~2us dictionary lookup.
     query_cache_size: int = 2048
+
+    # onnxruntime threads per embedding call. 1 is not a typo: measured over 64
+    # queries on 6 cores, threads=1 beat all-cores at every concurrency level
+    # (73 vs 52 qps at 8 concurrent, p95 168ms vs 301ms). Letting one inference
+    # fan out across cores makes concurrent requests fight each other.
+    embed_threads: int = 1
 
     # -- Search behaviour -------------------------------------------------
     search_default_limit: int = 10
