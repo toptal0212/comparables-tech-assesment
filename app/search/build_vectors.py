@@ -78,6 +78,7 @@ def build_vector_index(
         # which is the opposite of the serving case, so let onnxruntime use
         # every core here. Serving uses settings.embed_threads (1).
         threads=0,
+        cache_dir=str(settings.model_cache_dir) if settings.model_cache_dir else None,
     )
     if embedder is None:
         raise RuntimeError(f"embedding model unavailable: {settings.embedding_model}")

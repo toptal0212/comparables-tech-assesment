@@ -1,0 +1,48 @@
+# Local development and a faithful rehearsal of the deployed setup.
+#
+#   docker compose up --build        # first build takes ~8 min (index build)
+#   docker compose up                # subsequent starts are ~2s
+#
+# The named volume is what makes this a rehearsal rather than a demo: it is
+# seeded from the image on first start and persists after that, so companies
+# added through the ingestion endpoint survive `docker compose restart` exactly
+# as they would on a platform volume.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: company-search:local
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: production
+      LOG_LEVEL: INFO
+      DATA_DIR: /data
+      PORT: "8000"
+      WEB_CONCURRENCY: "1"
+      # Leave empty to keep writes open locally. Set it to require a key:
+      #   API_KEYS: local-dev-key
+      API_KEYS: ""
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_RPM: "600"
+    volumes:
+      - index-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/ready"]
+      interval: 15s
+      timeout: 5s
+      # Generous: a cold container has to load a 77MB matrix and the model.
+      start_period: 60s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Mirrors a small free-tier instance, so local testing surfaces the
+          # same memory pressure production would.
+          memory: 1G
+
+volumes:
+  index-data:

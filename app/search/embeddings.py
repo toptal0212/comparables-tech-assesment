@@ -74,6 +74,7 @@ class Embedder:
         dim: int,
         cache_size: int = 2048,
         threads: int = 1,
+        cache_dir: str | None = None,
     ) -> Embedder | None:
         """Load the model, or return None and log why.
 
@@ -87,7 +88,9 @@ class Embedder:
         try:
             from fastembed import TextEmbedding
 
-            model = TextEmbedding(model_name=model_name, threads=threads)
+            model = TextEmbedding(
+                model_name=model_name, threads=threads, cache_dir=cache_dir
+            )
             probe = next(iter(model.embed(["warmup"])))
             actual_dim = int(np.asarray(probe).shape[-1])
             if actual_dim != dim:

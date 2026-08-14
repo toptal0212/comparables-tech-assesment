@@ -1,0 +1,35 @@
+# Keep the build context small: it is uploaded to the daemon on every build,
+# and `data/` alone is ~95MB of artifacts the image rebuilds anyway.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local index artifacts — rebuilt inside the image.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.npy
+
+.git/
+.github/
+.gitignore
+.env
+.env.*
+!.env.example
+
+tests/
+docs/
+reports/
+deploy/
+*.md
+!README.md
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

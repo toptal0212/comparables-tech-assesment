@@ -98,6 +98,9 @@ async def load_runtime(db: Database | None = None) -> SearchRuntime | None:
                 dim=settings.embedding_dim,
                 cache_size=settings.query_cache_size,
                 threads=settings.embed_threads,
+                cache_dir=str(settings.model_cache_dir)
+                if settings.model_cache_dir
+                else None,
             )
             if embedder is None:
                 # Documents are embedded but queries cannot be. The matrix is

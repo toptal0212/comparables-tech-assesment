@@ -1,0 +1,49 @@
+# Render blueprint.
+#
+# Push this repo to GitHub, then New > Blueprint and point Render at it.
+#
+# Honest caveat, because it affects the headline latency claim: Render's free
+# tier spins a service down after ~15 minutes idle, and the next request waits
+# for a full container start — tens of seconds, dominated by pulling the image.
+# Steady-state latency is unaffected (still ~30ms), but a reviewer's first
+# request after a quiet period will feel slow. The starter plan removes it.
+#
+# The free plan also has no persistent disk, so companies added through the
+# ingestion endpoint live only as long as the container. The disk block below
+# is commented out and needs a paid plan.
+
+services:
+  - type: web
+    name: company-search
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+
+    healthCheckPath: /health/ready
+
+    envVars:
+      - key: ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATA_DIR
+        value: /data
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_RPM
+        value: "300"
+      # Generated once by Render and injected; required for write endpoints.
+      - key: API_KEYS
+        generateValue: true
+
+    # Requires a paid plan. Without it /data is ephemeral: the image's prebuilt
+    # index is re-seeded on every start, so search works but ingested companies
+    # do not survive a restart.
+    # disk:
+    #   name: index-data
+    #   mountPath: /data
+    #   sizeGB: 1

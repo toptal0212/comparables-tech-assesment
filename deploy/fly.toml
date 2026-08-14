@@ -1,0 +1,70 @@
+# Fly.io deployment.
+#
+#   fly launch --no-deploy --copy-config --config deploy/fly.toml
+#   fly volumes create index_data --size 1 --region ams
+#   fly deploy --config deploy/fly.toml
+#
+# Chosen as the primary target because it fits this design better than the
+# alternatives: a real persistent volume on the free tier (so ingested data
+# survives), scale-to-zero for off-peak, and no cold-start penalty large enough
+# to swamp a 30ms search — a suspended machine resumes in a few hundred
+# milliseconds, where a suspended free-tier Postgres takes seconds.
+
+app = "company-search"
+primary_region = "ams"
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  ENV = "production"
+  LOG_LEVEL = "INFO"
+  DATA_DIR = "/data"
+  PORT = "8000"
+  # One worker per machine. Each holds its own 77MB vector matrix and column
+  # arrays, so workers multiply memory instead of sharing it. Add machines, not
+  # workers.
+  WEB_CONCURRENCY = "1"
+  RATE_LIMIT_ENABLED = "true"
+  RATE_LIMIT_RPM = "300"
+
+# Set the write key out of band, never in this file:
+#   fly secrets set API_KEYS=<generated key>
+
+[[mounts]]
+  source = "index_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+
+  # Scale to zero when idle. The brief calls out fluctuating load between peak
+  # and off-peak; this is the cheapest honest answer to it. auto_start brings a
+  # machine back on the first request.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    # Search is CPU-bound in the embedding step, so queueing beyond a small
+    # number adds latency without adding throughput. These thresholds tell Fly
+    # to start another machine rather than deepen the queue.
+    soft_limit = 20
+    hard_limit = 40
+
+  # Readiness, not liveness. A machine still loading its index must not receive
+  # traffic, but it must also not be killed and restarted for being slow.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  # 512MB is enough: ~77MB vectors + ~2MB columns + ~130MB model + interpreter
+  # and runtime leaves headroom. 1GB if you raise WEB_CONCURRENCY.
+  memory = "512mb"

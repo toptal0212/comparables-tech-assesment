@@ -1,0 +1,68 @@
+# AWS App Runner service configuration.
+#
+# App Runner is the closest AWS equivalent to the other two targets: give it a
+# container image, get a managed HTTPS endpoint with autoscaling, no load
+# balancer or task definition to assemble. ECS Fargate gives more control at the
+# cost of a VPC, an ALB, target groups and IAM roles — more moving parts than
+# this service needs.
+#
+# Deploy:
+#   aws ecr create-repository --repository-name company-search
+#   docker build -t company-search .
+#   docker tag  company-search:latest <acct>.dkr.ecr.<region>.amazonaws.com/company-search:latest
+#   aws ecr get-login-password | docker login --username AWS --password-stdin <acct>.dkr.ecr.<region>.amazonaws.com
+#   docker push <acct>.dkr.ecr.<region>.amazonaws.com/company-search:latest
+#   aws apprunner create-service --cli-input-yaml file://deploy/aws-apprunner.yaml
+#
+# Two constraints that matter here, both worth knowing before choosing AWS:
+#
+# 1. App Runner has no persistent storage. The container filesystem is
+#    ephemeral, so /data is re-seeded from the image on every start. Search
+#    works fully; companies added via the ingestion endpoint do not survive a
+#    restart. Persisting them means EFS on ECS, or moving the source of truth
+#    to RDS/DynamoDB — which is the migration described in docs/DESIGN.md.
+#
+# 2. The free tier is time-limited (trial credits), unlike Fly and Render whose
+#    free plans are ongoing. Fine for an evaluation window, not for leaving a
+#    demo running.
+
+ServiceName: company-search
+
+SourceConfiguration:
+  AutoDeploymentsEnabled: true
+  ImageRepository:
+    ImageIdentifier: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/company-search:latest
+    ImageRepositoryType: ECR
+    ImageConfiguration:
+      Port: "8000"
+      RuntimeEnvironmentVariables:
+        ENV: production
+        LOG_LEVEL: INFO
+        DATA_DIR: /data
+        WEB_CONCURRENCY: "1"
+        RATE_LIMIT_ENABLED: "true"
+        RATE_LIMIT_RPM: "300"
+      # Write key from Secrets Manager rather than the environment block:
+      # RuntimeEnvironmentSecrets:
+      #   API_KEYS: arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:company-search/api-keys
+
+InstanceConfiguration:
+  # 1 vCPU / 2GB. App Runner's smallest size is 0.25 vCPU, which is too little:
+  # the embedding step is CPU-bound and a quarter-core pushes a ~25ms embed past
+  # 100ms, eating half the latency budget on its own.
+  Cpu: 1024
+  Memory: 2048
+
+HealthCheckConfiguration:
+  Protocol: HTTP
+  Path: /health/ready
+  Interval: 15
+  Timeout: 5
+  HealthyThreshold: 1
+  UnhealthyThreshold: 3
+
+AutoScalingConfigurationArn: ""   # default: scales 1-25 instances
+
+NetworkConfiguration:
+  IngressConfiguration:
+    IsPubliclyAccessible: true

@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     embedding_dim: int = 384
     embed_batch_size: int = 256
 
+    # Where the ONNX model files live. Pinned explicitly so the container
+    # image can bake them in at build time; fastembed otherwise defaults to a
+    # temp directory, which on a read-only or ephemeral filesystem means a
+    # fresh ~130MB download on every cold start.
+    model_cache_dir: Path | None = None
+
     # The service must still serve traffic when the embedding runtime is
     # unavailable (missing model files, an incompatible CPU, a cold volume).
     # With this off, search degrades to lexical + structured filtering rather
