@@ -29,10 +29,14 @@ from app.search.columns import ColumnStore
 from app.search.embeddings import Embedder
 from app.search.keyword import KeywordIndex
 from app.search.state import SearchRuntime, get_index_state
-from app.search.vector import VectorIndex
+from app.search.vector import RowMap, VectorIndex
 from app.store.db import Database
 
 log = get_logger(__name__)
+
+# Below this fraction of companies having an embedding, the matrix is treated
+# as belonging to a different corpus rather than merely lagging behind one.
+MIN_VECTOR_COVERAGE = 0.5
 
 
 async def load_runtime(db: Database | None = None) -> SearchRuntime | None:
@@ -77,25 +81,16 @@ async def load_runtime(db: Database | None = None) -> SearchRuntime | None:
     embedder: Embedder | None = None
 
     if settings.embeddings_enabled:
+        # No expected_count here: a container restarting after ingestion will
+        # legitimately find more rows in SQLite than in the matrix, and RowMap
+        # handles that. A genuinely mismatched index is caught by the coverage
+        # check below instead.
         vector = VectorIndex.load(
             settings.vectors_path,
             settings.vector_ids_path,
             settings.index_meta_path,
-            expected_count=doc_count,
             expected_model=settings.embedding_model,
         )
-        # Row alignment between the matrix and the column store is a load-bearing
-        # invariant: results are looked up by row position in both. A mismatch
-        # would return the wrong companies with high confidence, so verify
-        # rather than assume.
-        if vector is not None and (
-            vector.size != columns.size or not bool((vector.ids == columns.ids).all())
-        ):
-            log.error(
-                "vector_column_row_misalignment_discarding_vectors",
-                extra={"vector_rows": vector.size, "column_rows": columns.size},
-            )
-            vector = None
 
         if vector is not None:
             embedder = Embedder.try_create(
@@ -114,12 +109,40 @@ async def load_runtime(db: Database | None = None) -> SearchRuntime | None:
 
     vector_ms = (time.perf_counter() - t0) * 1000
 
+    # Rows are looked up positionally in both structures, so the translation
+    # between them has to be explicit. Identity after a clean build.
+    row_map = RowMap(columns.ids, vector.ids) if vector is not None else None
+    if row_map is not None and not row_map.aligned:
+        if row_map.coverage < MIN_VECTOR_COVERAGE:
+            # A handful of un-embedded new arrivals is expected. Coverage this
+            # low means the matrix belongs to a different corpus, and using it
+            # would silently degrade every result.
+            log.error(
+                "vector_index_coverage_too_low_discarding",
+                extra={
+                    "coverage": round(row_map.coverage, 4),
+                    "vector_rows": vector.size if vector else 0,
+                    "column_rows": columns.size,
+                },
+            )
+            vector, embedder, row_map = None, None, None
+        else:
+            log.warning(
+                "vector_index_partial_coverage",
+                extra={
+                    "vector_rows": vector.size if vector else 0,
+                    "column_rows": columns.size,
+                    "coverage": round(row_map.coverage, 4),
+                },
+            )
+
     runtime = SearchRuntime(
         db=db,
         keyword=KeywordIndex(db),
         columns=columns,
         vector=vector,
         embedder=embedder,
+        row_map=row_map,
         doc_count=doc_count,
         built_at=await db.get_meta("corpus_loaded_at"),
         model_name=embedder.model_name if embedder else None,
@@ -201,16 +224,19 @@ async def reload_columns() -> None:
     del records
 
     vector = current.vector
-    if vector is not None and (
-        vector.size != columns.size or not bool((vector.ids == columns.ids).all())
-    ):
-        # The corpus changed shape, so the matrix no longer lines up. Keep
-        # serving lexical results rather than mis-associating rows.
-        log.warning(
-            "vector_index_outdated_after_ingest",
-            extra={"vector_rows": vector.size, "corpus_rows": columns.size},
+    row_map = RowMap(columns.ids, vector.ids) if vector is not None else None
+    if row_map is not None and not row_map.aligned:
+        # The corpus changed shape. The vector index is still valid for every
+        # company it covers, so it is remapped rather than dropped: new arrivals
+        # simply sit out semantic ranking until the next full build.
+        log.info(
+            "vector_index_remapped_after_write",
+            extra={
+                "vector_rows": vector.size if vector else 0,
+                "corpus_rows": columns.size,
+                "coverage": round(row_map.coverage, 4),
+            },
         )
-        vector = None
 
     state.set_runtime(
         SearchRuntime(
@@ -218,10 +244,11 @@ async def reload_columns() -> None:
             keyword=current.keyword,
             columns=columns,
             vector=vector,
-            embedder=current.embedder if vector is not None else None,
+            embedder=current.embedder,
+            row_map=row_map,
             doc_count=doc_count,
             built_at=await current.db.get_meta("corpus_loaded_at"),
-            model_name=current.model_name if vector is not None else None,
+            model_name=current.model_name,
         )
     )
     metrics.gauge("index_documents", doc_count)

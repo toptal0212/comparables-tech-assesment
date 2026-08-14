@@ -106,6 +106,10 @@ class _Candidate:
     proximity: float = 0.0
     keyword_rank: int | None = None
     vector_rank: int | None = None
+    #: Raw retriever scores. Not part of `total` — RRF deliberately ignores
+    #: magnitude — but used to break exact ties. See `_sort_key`.
+    keyword_score: float = 0.0
+    vector_score: float = 0.0
     matched_topics: list[str] = field(default_factory=list)
 
     @property
@@ -170,11 +174,7 @@ class SearchEngine:
             self._apply_proximity(spec, relaxation.dropped, candidates)
 
         with _stage(timings, "rank"):
-            # Ties broken by company id so paging is stable across requests.
-            ordered = sorted(
-                candidates.values(),
-                key=lambda c: (-c.total, int(self.columns.ids[c.row])),
-            )
+            ordered = sorted(candidates.values(), key=self._sort_key)
             page = ordered[request.offset : request.offset + request.limit]
 
         with _stage(timings, "hydrate"):
@@ -211,9 +211,15 @@ class SearchEngine:
             return None
 
         row = self.columns.row_of(company_id)
-        if row is None or self.rt.vector is None:
-            # Without vectors, fall back to topic overlap, which is still a
-            # reasonable notion of "similar" in this corpus.
+        vector_row = (
+            int(self.rt.row_map.col_to_vec[row])
+            if row is not None and self.rt.row_map is not None
+            else -1
+        )
+        if row is None or self.rt.vector is None or self.rt.row_map is None or vector_row < 0:
+            # No embedding for the seed — either no vector index at all, or the
+            # company was ingested after the last build. Topic overlap is still
+            # a reasonable notion of "similar" in this corpus.
             return await self._similar_by_topic(seed, request, started)
 
         spec = FilterSpec(
@@ -222,13 +228,18 @@ class SearchEngine:
             locations=[seed.location] if request.same_location and seed.location else (),
         )
         mask = self.columns.mask(spec)
-        query_vec = self.rt.vector.vector_for_row(row)
-        rows, scores = self.rt.vector.search(query_vec, request.limit, mask=mask)
+        query_vec = self.rt.vector.vector_for_row(vector_row)
+        vector_rows, scores = self.rt.vector.search(
+            query_vec, request.limit, mask=self.rt.row_map.mask_to_vector_space(mask)
+        )
+        rows = self.rt.row_map.to_column_rows(vector_rows)
 
-        ids = [int(self.columns.ids[r]) for r in rows]
+        ids = [int(self.columns.ids[r]) for r in rows if r >= 0]
         records = await self.rt.db.get_many(ids)
         results = []
         for r, score in zip(rows, scores, strict=False):
+            if r < 0:
+                continue
             cid = int(self.columns.ids[r])
             rec = records.get(cid)
             if rec is None:
@@ -252,6 +263,33 @@ class SearchEngine:
             results=results,
             total=int(mask.sum()),
             took_ms=round(took, 2),
+        )
+
+    def _sort_key(self, cand: _Candidate) -> tuple[float, float, float, int]:
+        """Primary order is the fused score; ties fall back to raw magnitude.
+
+        RRF's strength is that it ignores score magnitude, which is also its one
+        blind spot: a document at rank 0 of the lexical list scores identically
+        to a different document at rank 0 of the semantic list, no matter how
+        much more confident one retriever was.
+
+        That surfaced as a concrete bug. Searching a company by name put a
+        merely-plausible semantic match above the exact name match, because both
+        held rank 0 in their own list and the tie fell through to company id.
+        A rare-term BM25 hit is strong evidence and should win that tie.
+
+        Magnitude is used only to break exact ties, never added into `total`, so
+        the fused ordering itself is untouched. Keyword precedes vector because
+        an unbounded BM25 score on a distinctive term is a higher-precision
+        signal than a bounded cosine similarity, which is never far from its
+        neighbours in a corpus of near-identical descriptions.
+        """
+        return (
+            -cand.total,
+            -cand.keyword_score,
+            -cand.vector_score,
+            # Final tiebreak on id, so paging is stable across identical requests.
+            int(self.columns.ids[cand.row]),
         )
 
     # -- filter construction ----------------------------------------------
@@ -426,12 +464,14 @@ class SearchEngine:
         results = await asyncio.gather(*tasks) if tasks else []
 
         for contribution in results:
-            for row, (rrf, rank, kind) in contribution.items():
+            for row, (rrf, rank, kind, raw) in contribution.items():
                 cand = candidates.setdefault(row, _Candidate(row=row))
                 if kind == "keyword":
                     cand.keyword_rrf, cand.keyword_rank = rrf, rank
+                    cand.keyword_score = raw
                 else:
                     cand.vector_rrf, cand.vector_rank = rrf, rank
+                    cand.vector_score = raw
 
         # A filter-only query ("companies in Sweden with 50 to 250 employees")
         # produces no lexical terms and, in keyword mode, no candidates at all.
@@ -446,7 +486,7 @@ class SearchEngine:
 
     async def _keyword_pass(
         self, parsed: ParsedQuery, mask: np.ndarray, pool: int
-    ) -> dict[int, tuple[float, int, str]]:
+    ) -> dict[int, tuple[float, int, str, float]]:
         terms = list(dict.fromkeys(parsed.text_terms + parsed.topics))
         if not terms:
             return {}
@@ -461,27 +501,50 @@ class SearchEngine:
 
         hits = await self.rt.keyword.search(terms, limit=pool, allowed_ids=allowed)
 
-        out: dict[int, tuple[float, int, str]] = {}
+        out: dict[int, tuple[float, int, str, float]] = {}
         rank = 0
         for hit in hits:
             row = self.columns.row_of(hit.company_id)
             if row is None or not mask[row]:
                 continue  # outside the filter; only possible on the unrestricted path
-            out[row] = (settings.weight_keyword / (settings.rrf_k + rank), rank, "keyword")
+            out[row] = (
+                settings.weight_keyword / (settings.rrf_k + rank),
+                rank,
+                "keyword",
+                hit.score,
+            )
             rank += 1
         return out
 
     async def _vector_pass(
         self, parsed: ParsedQuery, mask: np.ndarray, pool: int
-    ) -> dict[int, tuple[float, int, str]]:
-        if self.rt.embedder is None or self.rt.vector is None:
+    ) -> dict[int, tuple[float, int, str, float]]:
+        if self.rt.embedder is None or self.rt.vector is None or self.rt.row_map is None:
             return {}
         query_vec = await self.rt.embedder.embed_query(parsed.semantic_text or parsed.raw)
-        rows, _scores = self.rt.vector.search(query_vec, pool, mask=mask)
-        return {
-            int(row): (settings.weight_vector / (settings.rrf_k + rank), rank, "vector")
-            for rank, row in enumerate(rows)
-        }
+
+        # The mask is in column space; the matrix is in vector space. They are
+        # the same thing only until an ingest adds a company that has not been
+        # embedded, so translate in both directions rather than assuming.
+        row_map = self.rt.row_map
+        vector_mask = row_map.mask_to_vector_space(mask)
+        vector_rows, scores = self.rt.vector.search(query_vec, pool, mask=vector_mask)
+        column_rows = row_map.to_column_rows(vector_rows)
+
+        out: dict[int, tuple[float, int, str, float]] = {}
+        rank = 0
+        for column_row, score in zip(column_rows, scores, strict=False):
+            row = int(column_row)
+            if row < 0:
+                continue  # embedded, but deleted from the corpus since
+            out[row] = (
+                settings.weight_vector / (settings.rrf_k + rank),
+                rank,
+                "vector",
+                float(score),
+            )
+            rank += 1
+        return out
 
     def _apply_topic_scores(
         self, parsed: ParsedQuery, candidates: dict[int, _Candidate]

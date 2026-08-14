@@ -61,6 +61,70 @@ log = get_logger(__name__)
 _GATHER_THRESHOLD = 0.10
 
 
+class RowMap:
+    """Translation between column-store rows and vector-matrix rows.
+
+    The two indexes are built from the same corpus in the same id order, so
+    immediately after a build they are positionally identical. Ingestion breaks
+    that: adding one company shifts every subsequent column row while the vector
+    matrix stays as it was.
+
+    The first version of this treated any length mismatch as a stale index and
+    discarded the vectors entirely — one new company turned semantic search off
+    for all 50,000. Mapping through ids instead means a newly ingested company
+    simply does not participate in semantic ranking until the next full build,
+    while everything already embedded keeps working. It is found by keyword and
+    filters in the meantime.
+
+    Both id arrays are sorted, so this is two binary searches at load time and a
+    gather per query.
+    """
+
+    __slots__ = ("col_to_vec", "vec_to_col", "aligned", "coverage")
+
+    def __init__(self, column_ids: np.ndarray, vector_ids: np.ndarray) -> None:
+        n_cols = column_ids.shape[0]
+        n_vecs = vector_ids.shape[0]
+
+        self.aligned = n_cols == n_vecs and bool((column_ids == vector_ids).all())
+        if self.aligned:
+            identity = np.arange(n_cols, dtype=np.int64)
+            self.col_to_vec = identity
+            self.vec_to_col = identity
+            self.coverage = 1.0
+            return
+
+        # column row -> vector row, or -1 when the company has no embedding yet.
+        pos = np.searchsorted(vector_ids, column_ids)
+        pos_clipped = np.clip(pos, 0, max(n_vecs - 1, 0))
+        found = (n_vecs > 0) & (vector_ids[pos_clipped] == column_ids)
+        self.col_to_vec = np.where(found, pos_clipped, -1).astype(np.int64)
+
+        # vector row -> column row, or -1 when the company has since been deleted.
+        rpos = np.searchsorted(column_ids, vector_ids)
+        rpos_clipped = np.clip(rpos, 0, max(n_cols - 1, 0))
+        rfound = (n_cols > 0) & (column_ids[rpos_clipped] == vector_ids)
+        self.vec_to_col = np.where(rfound, rpos_clipped, -1).astype(np.int64)
+
+        self.coverage = float(found.mean()) if n_cols else 0.0
+
+    def mask_to_vector_space(self, column_mask: np.ndarray) -> np.ndarray:
+        """Project a column-space boolean mask onto vector rows."""
+        if self.aligned:
+            return column_mask
+        vector_mask = np.zeros(self.vec_to_col.shape[0], dtype=bool)
+        targets = self.col_to_vec[np.flatnonzero(column_mask)]
+        targets = targets[targets >= 0]
+        if targets.size:
+            vector_mask[targets] = True
+        return vector_mask
+
+    def to_column_rows(self, vector_rows: np.ndarray) -> np.ndarray:
+        if self.aligned:
+            return vector_rows
+        return self.vec_to_col[vector_rows]
+
+
 class VectorIndex:
     """Exact cosine top-k over a dense matrix, with optional row masking."""
 

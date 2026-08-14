@@ -21,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover - import cycle guard, types only
     from app.search.columns import ColumnStore
     from app.search.embeddings import Embedder
     from app.search.keyword import KeywordIndex
-    from app.search.vector import VectorIndex
+    from app.search.vector import RowMap, VectorIndex
     from app.store.db import Database
 
 
@@ -34,6 +34,9 @@ class SearchRuntime:
     columns: ColumnStore
     vector: VectorIndex | None
     embedder: Embedder | None
+    #: Translates column rows to vector rows. Identity right after a build;
+    #: sparse once ingestion has added companies that are not embedded yet.
+    row_map: RowMap | None = None
     doc_count: int = 0
     built_at: str | None = None
     model_name: str | None = None
@@ -82,6 +85,7 @@ class IndexState:
             "documents": rt.doc_count,
             "semantic_search": rt.semantic_enabled,
             "embedding_model": rt.model_name,
+            "semantic_coverage": round(rt.row_map.coverage, 4) if rt.row_map else 0.0,
             "built_at": rt.built_at,
         }
 

@@ -17,11 +17,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from app.api import routes_health
+from app.api import routes_companies, routes_health, routes_ingest, routes_search
+from app.api.deps import require_read_dependency
 from app.config import settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
+from app.core.security import RateLimitMiddleware
 from app.search import bootstrap
 
 log = get_logger(__name__)
@@ -79,10 +81,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["x-request-id", "x-response-time-ms"],
     )
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)
+
     app.include_router(routes_health.router)
+    # Read endpoints are public unless REQUIRE_AUTH_FOR_READS is set, so the
+    # deployed demo is explorable from a browser. Write endpoints carry their
+    # own unconditional auth dependency.
+    app.include_router(routes_search.router, dependencies=[require_read_dependency()])
+    app.include_router(routes_companies.router, dependencies=[require_read_dependency()])
+    app.include_router(routes_ingest.router)
 
     return app
 
