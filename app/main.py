@@ -22,6 +22,7 @@ from app.config import settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
+from app.search import bootstrap
 
 log = get_logger(__name__)
 
@@ -40,12 +41,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Index loading is wired in as the storage and index layers land; see the
-    # startup contract described in this module's docstring.
+    # Never raises: a failure here is recorded as a readiness failure so the
+    # process still serves /health, /health/ready and /metrics. See the module
+    # docstring for why that beats crash-looping.
+    await bootstrap.startup()
 
     yield
 
     log.info("shutting down")
+    await bootstrap.shutdown()
 
 
 def create_app() -> FastAPI:

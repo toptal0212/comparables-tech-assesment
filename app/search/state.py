@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - import cycle guard, types only
+    from app.search.columns import ColumnStore
     from app.search.embeddings import Embedder
     from app.search.keyword import KeywordIndex
     from app.search.vector import VectorIndex
@@ -30,6 +31,7 @@ class SearchRuntime:
 
     db: Database
     keyword: KeywordIndex
+    columns: ColumnStore
     vector: VectorIndex | None
     embedder: Embedder | None
     doc_count: int = 0
