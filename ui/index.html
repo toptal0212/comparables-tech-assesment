@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company Search</title>
+<!--
+  Single self-contained page, served by the API itself at /.
+
+  No build step, no CDN, no framework. Two reasons: a strict-CSP or
+  offline-capable deployment must not depend on an external host, and the point
+  of this page is to make the API's own behaviour visible — the parsed query,
+  the score breakdown, the relaxation notice — rather than to be an application
+  in its own right.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #111418; --muted: #5b6570; --line: #e3e8ee;
+    --card: #f7f9fb; --accent: #1f6feb; --accent-fg: #ffffff;
+    --warn-bg: #fff8e6; --warn-line: #f0c36d; --warn-fg: #6b4e00;
+    --chip: #eaf1fb; --chip-fg: #17458f;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --line: #21262d;
+      --card: #161b22; --accent: #4493f8; --accent-fg: #0d1117;
+      --warn-bg: #2b2412; --warn-line: #6b5426; --warn-fg: #e3b341;
+      --chip: #172554; --chip-fg: #9ec5ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 72px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 21px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); }
+
+  form { display: flex; gap: 8px; margin: 18px 0 10px; }
+  input[type=search] {
+    flex: 1; padding: 11px 13px; font-size: 15px; color: var(--fg);
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  input[type=search]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: var(--accent-fg);
+    border: 1px solid transparent; border-radius: var(--radius);
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  button.ghost {
+    background: transparent; color: var(--muted); font-weight: 500;
+    border-color: var(--line); padding: 5px 10px; font-size: 12.5px;
+  }
+  button.ghost:hover { color: var(--fg); border-color: var(--accent); }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .controls { display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+              font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .controls label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+
+  .panel { border: 1px solid var(--line); border-radius: var(--radius);
+           background: var(--card); padding: 12px 14px; margin-bottom: 14px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+              color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--chip); color: var(--chip-fg); border-radius: 999px;
+          padding: 3px 10px; font-size: 12.5px; white-space: nowrap; }
+  .chip b { font-weight: 600; }
+
+  .notice { background: var(--warn-bg); border: 1px solid var(--warn-line);
+            color: var(--warn-fg); border-radius: var(--radius);
+            padding: 10px 13px; margin-bottom: 14px; font-size: 13.5px; }
+
+  .meta { color: var(--muted); font-size: 13px; margin: 16px 0 10px; }
+
+  .result { border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 13px 15px; margin-bottom: 9px; background: var(--bg); }
+  .result.exact { border-color: var(--accent); }
+  .rhead { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .rname { font-weight: 650; font-size: 15.5px; }
+  .score { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rdesc { color: var(--muted); font-size: 13.5px; margin: 3px 0 7px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .fact { font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+          border-radius: 5px; padding: 1px 7px; }
+  .why { margin-top: 7px; font-size: 12px; color: var(--muted); }
+  .why span { margin-right: 10px; }
+
+  .breakdown { margin-top: 8px; font-size: 11.5px; color: var(--muted);
+               font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .empty { color: var(--muted); padding: 26px 0; text-align: center; }
+  .error { color: #d1242f; }
+  @media (prefers-color-scheme: dark) { .error { color: #ff7b72; } }
+  footer { margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: 12.5px; }
+  code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Company Search</h1>
+    <span class="sub" id="corpus">loading…</span>
+  </header>
+  <p class="sub" style="margin:2px 0 0">
+    Natural-language search over company data.
+    <a href="/docs">API docs</a> · <a href="/health">health</a> · <a href="/metrics">metrics</a>
+  </p>
+
+  <form id="form">
+    <input type="search" id="q" autocomplete="off" spellcheck="false"
+           placeholder="e.g. fintech companies in Finland working on fraud detection">
+    <button type="submit" id="go">Search</button>
+  </form>
+
+  <div class="examples" id="examples"></div>
+
+  <div class="controls">
+    <label><input type="checkbox" id="explain" checked> show scoring</label>
+    <label>mode
+      <select id="mode">
+        <option value="hybrid">hybrid</option>
+        <option value="keyword">keyword only</option>
+        <option value="semantic">semantic only</option>
+      </select>
+    </label>
+    <label>limit
+      <select id="limit">
+        <option>10</option><option>20</option><option>50</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="out"></div>
+
+  <footer>
+    Results show <em>why</em> they matched. <code>topic:</code> is an exact facet
+    lifted from the description at ingest time; <code>keyword rank</code> is
+    BM25; <code>semantic rank</code> is vector similarity. The two are combined
+    with reciprocal rank fusion.
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const out = $("out");
+
+  const EXAMPLES = [
+    "Find fintech companies in Finland working on fraud detection or banking analytics.",
+    "Show German healthcare companies focused on diagnostics and patient monitoring.",
+    "Energy companies in Sweden building software for smart grids or renewable forecasting.",
+    "Find telecom companies in the UK working on 5G analytics with fewer than 20 employees.",
+    "Show German companies founded after 2018 with fewer than 100 employees working on drug discovery.",
+    "Find fintech companies in Finland founded after 2015 with revenue between 10M and 100M.",
+    "companies preventing financial crime and money laundering",
+  ];
+
+  // textContent everywhere, never innerHTML with server data: company names and
+  // descriptions are attacker-controlled through the ingestion endpoint.
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
+  const fmtNum = (n) => n === null || n === undefined ? "—" : n.toLocaleString();
+
+  function chips(parsed) {
+    const items = [];
+    const add = (label, value) => items.push([label, value]);
+    parsed.locations.forEach(v => add("location", v));
+    parsed.industries.forEach(v => add("industry", v));
+    parsed.topics.forEach(v => add("topic", v));
+    if (parsed.founded)   add("founded", describe(parsed.founded));
+    if (parsed.employees) add("employees", describe(parsed.employees));
+    if (parsed.revenue_buckets.length) add("revenue", parsed.revenue_buckets.join(", "));
+    parsed.soft_signals.forEach(v => add("hint (not filtered)", v));
+    if (parsed.text_terms.length) add("text", parsed.text_terms.join(" "));
+    return items;
+  }
+
+  function describe(r) {
+    const lo = r.min !== null ? `${r.min_inclusive ? "≥" : ">"} ${trim(r.min)}` : null;
+    const hi = r.max !== null ? `${r.max_inclusive ? "≤" : "<"} ${trim(r.max)}` : null;
+    return [lo, hi].filter(Boolean).join(" and ");
+  }
+  const trim = (v) => v >= 1e9 ? (v/1e9)+"B" : v >= 1e6 ? (v/1e6)+"M" : String(v);
+
+  function render(data) {
+    out.replaceChildren();
+
+    // How the query was understood — the point of surfacing `parsed` at all.
+    const items = chips(data.parsed);
+    if (items.length) {
+      const panel = el("div", "panel");
+      panel.append(el("h2", null, "Interpreted as"));
+      const row = el("div", "chips");
+      for (const [label, value] of items) {
+        const chip = el("span", "chip");
+        chip.append(el("b", null, label + ": "), document.createTextNode(value));
+        row.append(chip);
+      }
+      panel.append(row);
+      out.append(panel);
+    }
+
+    if (data.relaxation && data.relaxation.applied) {
+      out.append(el("div", "notice", data.relaxation.message));
+    }
+
+    const meta = el("div", "meta");
+    meta.textContent =
+      `${fmtNum(data.total)} matching ${data.total === 1 ? "company" : "companies"}` +
+      ` · showing ${data.results.length}` +
+      ` · ${data.took_ms.toFixed(1)} ms` +
+      ` · ${data.mode}`;
+    out.append(meta);
+
+    if (!data.results.length) {
+      out.append(el("div", "empty", "No companies matched."));
+      return;
+    }
+
+    for (const c of data.results) {
+      const isExact = (c.matched_on || []).includes("matches every requested constraint");
+      const card = el("div", "result" + (isExact ? " exact" : ""));
+
+      const head = el("div", "rhead");
+      head.append(el("span", "rname", c.name));
+      head.append(el("span", "score", "score " + c.score.toFixed(4)));
+      card.append(head);
+
+      card.append(el("div", "rdesc", c.description));
+
+      const facts = el("div", "facts");
+      facts.append(el("span", "fact", c.industry));
+      facts.append(el("span", "fact", c.location));
+      if (c.founded_year)   facts.append(el("span", "fact", "founded " + c.founded_year));
+      if (c.employee_count) facts.append(el("span", "fact", fmtNum(c.employee_count) + " staff"));
+      if (c.revenue_range)  facts.append(el("span", "fact", c.revenue_range));
+      for (const t of c.topics) facts.append(el("span", "chip", t));
+
+      const similar = el("button", "ghost", "similar");
+      similar.addEventListener("click", () => showSimilar(c.id, c.name));
+      facts.append(similar);
+      card.append(facts);
+
+      if (c.matched_on && c.matched_on.length) {
+        const why = el("div", "why");
+        for (const reason of c.matched_on) why.append(el("span", null, "· " + reason));
+        card.append(why);
+      }
+
+      if (c.score_breakdown) {
+        const b = c.score_breakdown;
+        card.append(el("div", "breakdown",
+          `keyword ${b.keyword.toFixed(4)}  vector ${b.vector.toFixed(4)}  topic ${b.topic.toFixed(4)}`));
+      }
+      out.append(card);
+    }
+  }
+
+  async function search(query) {
+    if (!query.trim()) return;
+    $("go").disabled = true;
+    out.replaceChildren(el("div", "empty", "Searching…"));
+    try {
+      const res = await fetch("/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          query,
+          limit: Number($("limit").value),
+          mode: $("mode").value,
+          explain: $("explain").checked,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        const msg = (body.error && body.error.message) || res.statusText;
+        out.replaceChildren(el("div", "empty error", "Error: " + msg));
+        return;
+      }
+      render(body);
+      // Keep the query in the URL so a search can be shared or reloaded.
+      history.replaceState(null, "", "?q=" + encodeURIComponent(query));
+    } catch (err) {
+      out.replaceChildren(el("div", "empty error", "Request failed: " + err.message));
+    } finally {
+      $("go").disabled = false;
+    }
+  }
+
+  async function showSimilar(id, name) {
+    out.replaceChildren(el("div", "empty", "Finding companies similar to " + name + "…"));
+    try {
+      const res = await fetch(`/companies/${id}/similar?limit=10&explain=true`);
+      const body = await res.json();
+      if (!res.ok) throw new Error((body.error && body.error.message) || res.statusText);
+      render({
+        parsed: { locations: [], industries: [], topics: body.seed.topics,
+                  founded: null, employees: null, revenue_buckets: [],
+                  soft_signals: [], text_terms: [] },
+        relaxation: { applied: false },
+        results: body.results, total: body.total,
+        took_ms: body.took_ms, mode: "similar to " + body.seed.name,
+      });
+    } catch (err) {
+      out.replaceChildren(el("div", "empty error", "Request failed: " + err.message));
+    }
+  }
+
+  for (const text of EXAMPLES) {
+    const b = el("button", "ghost", text.length > 62 ? text.slice(0, 60) + "…" : text);
+    b.type = "button";
+    b.title = text;
+    b.addEventListener("click", () => { $("q").value = text; search(text); });
+    $("examples").append(b);
+  }
+
+  $("form").addEventListener("submit", (e) => { e.preventDefault(); search($("q").value); });
+  for (const id of ["mode", "limit", "explain"]) {
+    $(id).addEventListener("change", () => { if ($("q").value.trim()) search($("q").value); });
+  }
+
+  fetch("/health").then(r => r.json()).then(h => {
+    const i = h.index || {};
+    $("corpus").textContent = i.ready
+      ? `${fmtNum(i.documents)} companies · ${i.semantic_search ? "hybrid" : "lexical only"}`
+      : "index not ready";
+  }).catch(() => { $("corpus").textContent = ""; });
+
+  const initial = new URLSearchParams(location.search).get("q");
+  if (initial) { $("q").value = initial; search(initial); }
+})();
+</script>
+</body>
+</html>

@@ -17,7 +17,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from app.api import routes_companies, routes_health, routes_ingest, routes_search
+from app.api import (
+    routes_companies,
+    routes_health,
+    routes_ingest,
+    routes_search,
+    routes_ui,
+)
 from app.api.deps import require_read_dependency
 from app.config import settings
 from app.core.errors import register_exception_handlers
@@ -93,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_search.router, dependencies=[require_read_dependency()])
     app.include_router(routes_companies.router, dependencies=[require_read_dependency()])
     app.include_router(routes_ingest.router)
+    app.include_router(routes_ui.router)
 
     return app
 

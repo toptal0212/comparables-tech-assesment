@@ -323,3 +323,34 @@ def test_openapi_schema_is_served(client):
     schema = client.get("/openapi.json").json()
     assert "/search" in schema["paths"]
     assert "/companies/{company_id}/similar" in schema["paths"]
+
+
+# --- UI ---------------------------------------------------------------------
+
+
+def test_ui_is_served_at_root(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Company Search" in response.text
+
+
+def test_ui_has_no_external_dependencies(client):
+    """A strict-CSP or offline deployment must not need a CDN.
+
+    Also keeps the page honest about being self-contained: an external script
+    would silently become a runtime dependency of the demo.
+    """
+    body = client.get("/").text
+    for marker in ("src=\"http", "href=\"http://", "cdn.", "googleapis", "unpkg"):
+        assert marker not in body, f"external reference found: {marker}"
+
+
+def test_favicon_is_answered_not_404(client):
+    """Browsers request it unprompted; a 404 per page load is log noise."""
+    assert client.get("/favicon.ico").status_code == 204
+
+
+def test_ui_is_excluded_from_the_openapi_schema(client):
+    schema = client.get("/openapi.json").json()
+    assert "/" not in schema["paths"]
