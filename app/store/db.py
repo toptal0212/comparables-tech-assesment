@@ -26,7 +26,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -150,17 +150,17 @@ class Database:
     # -- reads ------------------------------------------------------------
 
     async def count(self) -> int:
-        async with self.reader() as conn:
-            async with conn.execute("SELECT count(*) FROM companies") as cur:
-                row = await cur.fetchone()
+        async with self.reader() as conn, conn.execute(
+            "SELECT count(*) FROM companies"
+        ) as cur:
+            row = await cur.fetchone()
         return int(row[0]) if row else 0
 
     async def get(self, company_id: int) -> CompanyRecord | None:
-        async with self.reader() as conn:
-            async with conn.execute(
-                f"SELECT {_SELECT_COLUMNS} FROM companies WHERE id = ?", (company_id,)
-            ) as cur:
-                row = await cur.fetchone()
+        async with self.reader() as conn, conn.execute(
+            f"SELECT {_SELECT_COLUMNS} FROM companies WHERE id = ?", (company_id,)
+        ) as cur:
+            row = await cur.fetchone()
         return _row_to_record(row) if row else None
 
     async def get_many(self, ids: Sequence[int]) -> dict[int, CompanyRecord]:
@@ -172,12 +172,11 @@ class Database:
         if not ids:
             return {}
         placeholders = ",".join("?" * len(ids))
-        async with self.reader() as conn:
-            async with conn.execute(
-                f"SELECT {_SELECT_COLUMNS} FROM companies WHERE id IN ({placeholders})",
-                tuple(ids),
-            ) as cur:
-                rows = await cur.fetchall()
+        async with self.reader() as conn, conn.execute(
+            f"SELECT {_SELECT_COLUMNS} FROM companies WHERE id IN ({placeholders})",
+            tuple(ids),
+        ) as cur:
+            rows = await cur.fetchall()
         return {row[0]: _row_to_record(row) for row in rows}
 
     async def iter_all(self, batch_size: int = 2000) -> AsyncIterator[list[CompanyRecord]]:
@@ -209,7 +208,7 @@ class Database:
         One transaction for the whole batch: 50k individual commits would be
         thousands of fsyncs, whereas one commit is a single flush.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         rows = [
             (
                 r.id, r.name, r.description, r.industry, r.location,
@@ -255,9 +254,10 @@ class Database:
             return cur.rowcount > 0
 
     async def next_id(self) -> int:
-        async with self.reader() as conn:
-            async with conn.execute("SELECT coalesce(max(id), 0) FROM companies") as cur:
-                row = await cur.fetchone()
+        async with self.reader() as conn, conn.execute(
+            "SELECT coalesce(max(id), 0) FROM companies"
+        ) as cur:
+            row = await cur.fetchone()
         return int(row[0]) + 1 if row else 1
 
     # -- metadata ---------------------------------------------------------
@@ -272,9 +272,8 @@ class Database:
             await conn.commit()
 
     async def get_meta(self, key: str) -> str | None:
-        async with self.reader() as conn:
-            async with conn.execute(
-                "SELECT value FROM index_meta WHERE key = ?", (key,)
-            ) as cur:
-                row = await cur.fetchone()
+        async with self.reader() as conn, conn.execute(
+            "SELECT value FROM index_meta WHERE key = ?", (key,)
+        ) as cur:
+            row = await cur.fetchone()
         return row[0] if row else None

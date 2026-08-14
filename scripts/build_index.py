@@ -99,10 +99,7 @@ def main() -> int:
 
     total = time.perf_counter() - t0
     meta_path = args.data_dir / "index_meta.json"
-    if meta_path.exists():
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    else:
-        meta = {}
+    meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
     meta["build_seconds"] = round(total, 1)
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 

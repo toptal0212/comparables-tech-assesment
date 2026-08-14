@@ -26,7 +26,7 @@ import sqlite3
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -133,7 +133,7 @@ def bulk_ingest(
             conn.execute(f"DROP TRIGGER IF EXISTS {trigger}")
         conn.commit()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         batch: list[tuple[Any, ...]] = []
         next_id = _max_id(conn) + 1
 
