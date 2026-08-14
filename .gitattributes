@@ -1,0 +1,35 @@
+# Normalise line endings in the repository to LF.
+#
+# This is not cosmetic. The repo is developed on Windows and deployed to Linux
+# containers: if docker-entrypoint.sh is checked out with CRLF, the kernel reads
+# the shebang as `/usr/bin/env sh\r` and the container dies with a confusing
+# "no such file or directory" that names a file which plainly exists.
+#
+# Dockerfile, YAML and JSON are covered for the same reason — a stray \r breaks
+# heredocs in RUN steps and can trip strict parsers.
+
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.py        text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.sql       text eol=lf
+*.md        text eol=lf
+*.html      text eol=lf
+*.txt       text eol=lf
+Dockerfile  text eol=lf
+.env.example text eol=lf
+
+# Binary: never touch, never diff.
+*.npy       binary
+*.db        binary
+*.png       binary
+*.jpg       binary
+*.pdf       binary
+
+# The Docker entrypoint must also be executable on checkout, so the image does
+# not depend on the chmod in the Dockerfile succeeding.
+docker-entrypoint.sh text eol=lf
