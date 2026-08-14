@@ -19,8 +19,9 @@ from __future__ import annotations
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 _WINDOW = 4096
 

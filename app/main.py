@@ -10,8 +10,8 @@ container that crash-loops before it can serve a single request.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,7 +31,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     log.info(
         "starting",
-        extra={"version": settings.version, "env": settings.env, "data_dir": str(settings.data_dir)},
+        extra={
+            "version": settings.version,
+            "env": settings.env,
+            "data_dir": str(settings.data_dir),
+        },
     )
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)

@@ -24,8 +24,8 @@ _request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
 # by the caller via `extra=` and belongs in the structured output.
 _STD_ATTRS = frozenset(
     """args asctime created exc_info exc_text filename funcName levelname levelno
-    lineno module msecs message msg name pathname process processName relativeCreated
-    stack_info thread threadName taskName""".split()
+    lineno module msecs message msg name pathname process processName
+    relativeCreated stack_info thread threadName taskName""".split()
 )
 
 
@@ -72,7 +72,8 @@ class TextFormatter(logging.Formatter):
             for k, v in record.__dict__.items()
             if k not in _STD_ATTRS and not k.startswith("_")
         )
-        line = f"{self.formatTime(record, '%H:%M:%S')} {record.levelname:<7} {prefix}{record.name}: {record.getMessage()}"
+        stamp = self.formatTime(record, "%H:%M:%S")
+        line = f"{stamp} {record.levelname:<7} {prefix}{record.name}: {record.getMessage()}"
         if extras:
             line = f"{line}  {extras}"
         if record.exc_info:

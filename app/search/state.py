@@ -28,10 +28,10 @@ if TYPE_CHECKING:  # pragma: no cover - import cycle guard, types only
 class SearchRuntime:
     """An immutable-by-convention bundle of everything a query needs."""
 
-    db: "Database"
-    keyword: "KeywordIndex"
-    vector: "VectorIndex | None"
-    embedder: "Embedder | None"
+    db: Database
+    keyword: KeywordIndex
+    vector: VectorIndex | None
+    embedder: Embedder | None
     doc_count: int = 0
     built_at: str | None = None
     model_name: str | None = None

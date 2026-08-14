@@ -62,9 +62,13 @@ INDUSTRY_ALIASES: dict[str, set[str]] = {
         "biotech", "bio tech", "biotechnology", "life science", "life sciences",
         "pharma", "pharmaceutical", "pharmaceuticals", "genomics", "bioscience",
     },
+    # No bare "it" or "data": both are far too common as ordinary English words
+    # ("companies that use it for…", "data on revenue") and would silently pin
+    # an industry filter onto unrelated queries.
     "Technology": {
-        "technology", "tech", "software", "it", "saas", "cloud", "computing",
-        "developer tools", "devtools", "infrastructure software", "data",
+        "technology", "tech", "software", "saas", "cloud", "computing",
+        "developer tools", "devtools", "infrastructure software",
+        "information technology", "it services",
     },
     "Energy": {
         "energy", "utilities", "utility", "power", "cleantech", "clean tech",
@@ -106,7 +110,9 @@ LOCATION_ALIASES: dict[str, set[str]] = {
     "Finland": {"finland", "finnish", "fi", "fin", "helsinki"},
     "Germany": {"germany", "german", "de", "deu", "ger", "deutschland", "berlin", "munich"},
     "France": {"france", "french", "fr", "fra", "paris"},
-    "Norway": {"norway", "norwegian", "no", "nor", "oslo"},
+    # "no" is excluded on purpose — "companies with no revenue" must not resolve
+    # to Norway. The two-letter ISO code is not worth that failure mode.
+    "Norway": {"norway", "norwegian", "nor", "oslo"},
     "Sweden": {"sweden", "swedish", "se", "swe", "stockholm"},
     "Netherlands": {
         "netherlands", "the netherlands", "dutch", "nl", "nld", "holland",

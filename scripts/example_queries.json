@@ -1,0 +1,179 @@
+{
+  "_comment": [
+    "The 17 natural-language queries given in the Comparables.ai technical",
+    "assessment brief, verbatim. Shared by tests/test_parser.py and",
+    "scripts/benchmark.py so the parser contract and the published performance",
+    "numbers are measured against exactly the same inputs.",
+    "",
+    "`expect` records what the parser should extract. It is the assertion target",
+    "in the test suite, not a hint used at runtime."
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "text": "Find fintech companies in Finland working on fraud detection or banking analytics.",
+      "expect": {
+        "locations": ["Finland"],
+        "industries": ["Fintech"],
+        "topics": ["fraud detection", "banking analytics"]
+      }
+    },
+    {
+      "id": 2,
+      "text": "Show German healthcare companies focused on diagnostics and patient monitoring.",
+      "expect": {
+        "locations": ["Germany"],
+        "industries": ["Healthcare"],
+        "topics": ["diagnostics", "patient monitoring"]
+      }
+    },
+    {
+      "id": 3,
+      "text": "Biotech startups in Germany working on drug discovery.",
+      "expect": {
+        "locations": ["Germany"],
+        "industries": ["Biotech"],
+        "topics": ["drug discovery"],
+        "soft_signals": ["early-stage"]
+      }
+    },
+    {
+      "id": 4,
+      "text": "Energy companies in Sweden building software for smart grids or renewable forecasting.",
+      "expect": {
+        "locations": ["Sweden"],
+        "industries": ["Energy"],
+        "topics": ["smart grid", "energy forecasting"]
+      }
+    },
+    {
+      "id": 5,
+      "text": "US technology companies building infrastructure for data pipelines and observability.",
+      "expect": {
+        "locations": ["USA"],
+        "industries": ["Technology"],
+        "topics": ["data pipelines", "observability"]
+      }
+    },
+    {
+      "id": 6,
+      "text": "Show healthcare companies in Finland focused on diagnostics founded before 2005.",
+      "expect": {
+        "locations": ["Finland"],
+        "industries": ["Healthcare"],
+        "topics": ["diagnostics"],
+        "founded": { "max": 2005, "max_inclusive": false }
+      }
+    },
+    {
+      "id": 7,
+      "text": "Find telecom companies in the UK working on 5G analytics with fewer than 20 employees.",
+      "expect": {
+        "locations": ["UK"],
+        "industries": ["Telecom"],
+        "topics": ["5g analytics"],
+        "employees": { "max": 20, "max_inclusive": false }
+      }
+    },
+    {
+      "id": 8,
+      "text": "Retail companies in France focused on pricing optimization and demand forecasting.",
+      "expect": {
+        "locations": ["France"],
+        "industries": ["Retail"],
+        "topics": ["pricing optimization", "demand forecasting"]
+      }
+    },
+    {
+      "id": 9,
+      "text": "Education companies in the UK using AI for personalized learning.",
+      "expect": {
+        "locations": ["UK"],
+        "industries": ["Education"],
+        "topics": ["personalized learning"]
+      }
+    },
+    {
+      "id": 10,
+      "text": "Automotive software companies in Germany working on autonomous driving.",
+      "expect": {
+        "locations": ["Germany"],
+        "industries": ["Automotive"],
+        "topics": ["autonomous driving"]
+      }
+    },
+    {
+      "id": 11,
+      "text": "Find fintech companies in Germany working on fraud detection with revenue over 500M.",
+      "expect": {
+        "locations": ["Germany"],
+        "industries": ["Fintech"],
+        "topics": ["fraud detection"],
+        "revenue": { "min": 500000000.0, "min_inclusive": false },
+        "revenue_buckets": ["500M+"]
+      }
+    },
+    {
+      "id": 12,
+      "text": "Find companies in Sweden with 50 to 250 employees working on energy forecasting.",
+      "expect": {
+        "locations": ["Sweden"],
+        "topics": ["energy forecasting"],
+        "employees": { "min": 50, "max": 250, "min_inclusive": true, "max_inclusive": true }
+      }
+    },
+    {
+      "id": 13,
+      "text": "Find fintech companies in Finland founded after 2015 with revenue between 10M and 100M.",
+      "expect": {
+        "locations": ["Finland"],
+        "industries": ["Fintech"],
+        "founded": { "min": 2015, "min_inclusive": false },
+        "revenue": { "min": 10000000.0, "max": 100000000.0 },
+        "revenue_buckets": ["10M-50M", "50M-100M"]
+      }
+    },
+    {
+      "id": 14,
+      "text": "Show German companies founded after 2018 with fewer than 100 employees working on drug discovery.",
+      "expect": {
+        "locations": ["Germany"],
+        "topics": ["drug discovery"],
+        "founded": { "min": 2018, "min_inclusive": false },
+        "employees": { "max": 100, "max_inclusive": false }
+      }
+    },
+    {
+      "id": 15,
+      "text": "Find UK education companies founded after 2019 with revenue under 10M.",
+      "expect": {
+        "locations": ["UK"],
+        "industries": ["Education"],
+        "founded": { "min": 2019, "min_inclusive": false },
+        "revenue": { "max": 10000000.0, "max_inclusive": false },
+        "revenue_buckets": ["0-1M", "1M-10M"]
+      }
+    },
+    {
+      "id": 16,
+      "text": "Find German biotech companies with more than 500 employees founded after 2022.",
+      "expect": {
+        "locations": ["Germany"],
+        "industries": ["Biotech"],
+        "employees": { "min": 500, "min_inclusive": false },
+        "founded": { "min": 2022, "min_inclusive": false }
+      }
+    },
+    {
+      "id": 17,
+      "text": "Show retail companies in Norway focused on pricing optimization with revenue above 100M.",
+      "expect": {
+        "locations": ["Norway"],
+        "industries": ["Retail"],
+        "topics": ["pricing optimization"],
+        "revenue": { "min": 100000000.0, "min_inclusive": false },
+        "revenue_buckets": ["100M-500M", "500M+"]
+      }
+    }
+  ]
+}
