@@ -28,9 +28,11 @@ data/
 .env.*
 !.env.example
 
-# Benchmark output
-reports/*.json
+# Benchmark output. self_assessment.* is a deliverable and IS committed;
+# ad-hoc runs are not.
 reports/*.csv
+reports/*.json
+!reports/self_assessment.json
 
 # Editors / OS
 .vscode/

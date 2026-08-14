@@ -1,0 +1,310 @@
+{
+  "generated_at": "2026-08-14 08:08:58 UTC",
+  "environment": {
+    "transport": "in-process ASGI (no network)",
+    "documents": 50000,
+    "semantic search": true,
+    "embedding model": "BAAI/bge-small-en-v1.5",
+    "index load time": "1.35s",
+    "python": "3.12.10"
+  },
+  "queries": [
+    {
+      "id": 1,
+      "text": "Find fintech companies in Finland working on fraud detection or banking analytics.",
+      "total": 305,
+      "returned": 10,
+      "p50": 12.15,
+      "p95": 13.34,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Nordic Fintech Solutions"
+    },
+    {
+      "id": 2,
+      "text": "Show German healthcare companies focused on diagnostics and patient monitoring.",
+      "total": 449,
+      "returned": 10,
+      "p50": 13.48,
+      "p95": 35.9,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Rhine Health Systems"
+    },
+    {
+      "id": 3,
+      "text": "Biotech startups in Germany working on drug discovery.",
+      "total": 219,
+      "returned": 10,
+      "p50": 10.42,
+      "p95": 10.73,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Lambert Group"
+    },
+    {
+      "id": 4,
+      "text": "Energy companies in Sweden building software for smart grids or renewable forecasting.",
+      "total": 414,
+      "returned": 10,
+      "p50": 14.17,
+      "p95": 15.05,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Roberts Ltd"
+    },
+    {
+      "id": 5,
+      "text": "US technology companies building infrastructure for data pipelines and observability.",
+      "total": 372,
+      "returned": 10,
+      "p50": 13.36,
+      "p95": 13.82,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "CloudForge Systems"
+    },
+    {
+      "id": 6,
+      "text": "Show healthcare companies in Finland focused on diagnostics founded before 2005.",
+      "total": 73,
+      "returned": 10,
+      "p50": 8.6,
+      "p95": 9.41,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "May Ltd"
+    },
+    {
+      "id": 7,
+      "text": "Find telecom companies in the UK working on 5G analytics with fewer than 20 employees.",
+      "total": 312,
+      "returned": 10,
+      "p50": 13.47,
+      "p95": 13.85,
+      "relaxed": true,
+      "dropped": [
+        "employees"
+      ],
+      "violations": [],
+      "top_name": "Gallegos, Adams and Baker"
+    },
+    {
+      "id": 8,
+      "text": "Retail companies in France focused on pricing optimization and demand forecasting.",
+      "total": 433,
+      "returned": 10,
+      "p50": 14.74,
+      "p95": 15.63,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "RetailMind Europe"
+    },
+    {
+      "id": 9,
+      "text": "Education companies in the UK using AI for personalized learning.",
+      "total": 313,
+      "returned": 10,
+      "p50": 12.03,
+      "p95": 13.21,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Warren-Ingram"
+    },
+    {
+      "id": 10,
+      "text": "Automotive software companies in Germany working on autonomous driving.",
+      "total": 337,
+      "returned": 10,
+      "p50": 12.76,
+      "p95": 13.85,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "French Ltd"
+    },
+    {
+      "id": 11,
+      "text": "Find fintech companies in Germany working on fraud detection with revenue over 500M.",
+      "total": 50,
+      "returned": 10,
+      "p50": 8.64,
+      "p95": 9.0,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Michael-Flores"
+    },
+    {
+      "id": 12,
+      "text": "Find companies in Sweden with 50 to 250 employees working on energy forecasting.",
+      "total": 10,
+      "returned": 10,
+      "p50": 8.91,
+      "p95": 9.67,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Foster-Duncan"
+    },
+    {
+      "id": 13,
+      "text": "Find fintech companies in Finland founded after 2015 with revenue between 10M and 100M.",
+      "total": 58,
+      "returned": 10,
+      "p50": 5.7,
+      "p95": 7.31,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Nordic Fintech Solutions"
+    },
+    {
+      "id": 14,
+      "text": "Show German companies founded after 2018 with fewer than 100 employees working on drug discovery.",
+      "total": 53,
+      "returned": 10,
+      "p50": 9.29,
+      "p95": 10.46,
+      "relaxed": true,
+      "dropped": [
+        "employees"
+      ],
+      "violations": [],
+      "top_name": "Helix BioCompute"
+    },
+    {
+      "id": 15,
+      "text": "Find UK education companies founded after 2019 with revenue under 10M.",
+      "total": 3,
+      "returned": 3,
+      "p50": 5.2,
+      "p95": 7.02,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Cook Inc"
+    },
+    {
+      "id": 16,
+      "text": "Find German biotech companies with more than 500 employees founded after 2022.",
+      "total": 39,
+      "returned": 10,
+      "p50": 5.72,
+      "p95": 7.86,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Baker and Sons"
+    },
+    {
+      "id": 17,
+      "text": "Show retail companies in Norway focused on pricing optimization with revenue above 100M.",
+      "total": 103,
+      "returned": 10,
+      "p50": 9.94,
+      "p95": 10.81,
+      "relaxed": false,
+      "dropped": [],
+      "violations": [],
+      "top_name": "Taylor Group"
+    }
+  ],
+  "summary": {
+    "warm_p50": 10.46,
+    "warm_p95": 14.2,
+    "warm_p99": 15.63,
+    "cold_p50": 46.27,
+    "cold_p95": 49.82,
+    "cold_p99": 50.72
+  },
+  "stages": {
+    "filter": 0.379,
+    "hydrate": 1.023,
+    "parse": 0.206,
+    "rank": 0.16,
+    "retrieve": 5.711
+  },
+  "ablation": {
+    "keyword": {
+      "p50": 9.96,
+      "p95": 13.85,
+      "p99": 14.41
+    },
+    "semantic": {
+      "p50": 6.37,
+      "p95": 8.94,
+      "p99": 9.28
+    },
+    "hybrid": {
+      "p50": 10.61,
+      "p95": 14.54,
+      "p99": 14.7
+    }
+  },
+  "similar": {
+    "p50": 8.05,
+    "p95": 9.67,
+    "p99": 10.09
+  },
+  "throughput": [
+    {
+      "concurrency": 1,
+      "requests": 200,
+      "errors": 0,
+      "wall_s": 2.15,
+      "rps": 92.8,
+      "p50": 10.96,
+      "p95": 14.45,
+      "p99": 15.5
+    },
+    {
+      "concurrency": 4,
+      "requests": 200,
+      "errors": 0,
+      "wall_s": 2.06,
+      "rps": 96.9,
+      "p50": 35.96,
+      "p95": 69.11,
+      "p99": 89.76
+    },
+    {
+      "concurrency": 8,
+      "requests": 200,
+      "errors": 0,
+      "wall_s": 1.67,
+      "rps": 120.0,
+      "p50": 63.85,
+      "p95": 97.38,
+      "p99": 112.63
+    },
+    {
+      "concurrency": 16,
+      "requests": 200,
+      "errors": 0,
+      "wall_s": 1.58,
+      "rps": 126.4,
+      "p50": 122.3,
+      "p95": 181.26,
+      "p99": 196.87
+    }
+  ],
+  "correctness": {
+    "queries": 17,
+    "non_empty": 17,
+    "violations": 0,
+    "relaxed": 2,
+    "relaxed_ids": [
+      7,
+      14
+    ]
+  }
+}
