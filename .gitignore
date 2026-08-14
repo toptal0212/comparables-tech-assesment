@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Local runtime state. `data/` holds the SQLite database and the derived vector
+# index; both are build artifacts rebuilt from sample_dataset/companies.json,
+# so they must never be committed.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.npy
+
+# Model cache (downloaded at image build time, baked into the container)
+.models/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Benchmark output
+reports/*.json
+reports/*.csv
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
